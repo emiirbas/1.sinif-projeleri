@@ -1,0 +1,231 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <ctime>
+#include <iomanip>
+#include <limits>
+
+using namespace std;
+
+class Rezervasyon {
+    string musteriAdi;
+    int odaNumarasi;
+    time_t baslangicTarihi;
+    time_t bitisTarihi;
+
+public:
+    Rezervasyon(const string& ad, int odaNo, time_t baslangic, time_t bitis)
+        : musteriAdi(ad), odaNumarasi(odaNo), baslangicTarihi(baslangic), bitisTarihi(bitis) {}
+
+    string GetMusteriAdi() const {
+        return musteriAdi;
+    }
+
+    int GetOdaNumarasi() const {
+        return odaNumarasi;
+    }
+
+    time_t GetBaslangicTarihi() const {
+        return baslangicTarihi;
+    }
+
+    time_t GetBitisTarihi() const {
+        return bitisTarihi;
+    }
+};
+
+class OtelYonetimSistemi {
+    vector<bool> odalar;
+    vector<Rezervasyon> rezervasyonlar;
+
+public:
+    OtelYonetimSistemi(int odaSayisi) : odalar(odaSayisi, false) {}
+
+    void OdalariGoster() const {
+        cout << "Otel Odaları Durumu:" << endl;
+        for (int i = 0; i < odalar.size(); ++i) {
+            cout << "Oda " << i + 1 << ": ";
+            if (odalar[i]) {
+                cout << "Dolu";
+            } else {
+                cout << "Boş";
+            }
+            cout << endl;
+        }
+    }
+
+    bool RezervasyonYap(const string& musteriAdi, int odaNumarasi, const tm& baslangicTarih, const tm& bitisTarih) {
+        if (odaNumarasi < 1 || odaNumarasi > odalar.size()) {
+            cout << "Geçersiz oda numarası." << endl;
+            return false;
+        }
+
+        if (odalar[odaNumarasi - 1]) {
+            cout << "Seçilen oda zaten dolu." << endl;
+            return false;
+        }
+
+        time_t baslangic = mktime(const_cast<tm*>(&baslangicTarih));
+        time_t bitis = mktime(const_cast<tm*>(&bitisTarih));
+
+        for (const auto& rezervasyon : rezervasyonlar) {
+            if (odaNumarasi == rezervasyon.GetOdaNumarasi()) {
+                if (baslangic <= rezervasyon.GetBitisTarihi() && bitis >= rezervasyon.GetBaslangicTarihi()) {
+                    cout << "Seçilen tarihlerde oda zaten rezerve edilmiş." << endl;
+                    return false;
+                }
+            }
+        }
+
+        odalar[odaNumarasi - 1] = true;
+        Rezervasyon rezervasyon(musteriAdi, odaNumarasi, baslangic, bitis);
+        rezervasyonlar.push_back(rezervasyon);
+
+        cout << "Rezervasyon yapıldı: Oda " << odaNumarasi << " - " << musteriAdi << endl;
+        return true;
+    }
+
+    bool RezervasyonIptal(int odaNumarasi) {
+        if (odaNumarasi < 1 || odaNumarasi > odalar.size()) {
+            cout << "Geçersiz oda numarası." << endl;
+            return false;
+        }
+
+        if (!odalar[odaNumarasi - 1]) {
+            cout << "Seçilen oda zaten boş." << endl;
+            return false;
+        }
+
+        for (auto it = rezervasyonlar.begin(); it != rezervasyonlar.end(); ++it) {
+            if ((*it).GetOdaNumarasi() == odaNumarasi) {
+                rezervasyonlar.erase(it);
+                break;
+            }
+        }
+
+        odalar[odaNumarasi - 1] = false;
+        cout << "Rezervasyon iptal edildi: Oda " << odaNumarasi << endl;
+        return true;
+    }
+
+    bool RezervasyonDuzenle(int odaNumarasi, const tm& yeniBaslangicTarih, const tm& yeniBitisTarih) {
+        if (odaNumarasi < 1 || odaNumarasi > odalar.size()) {
+            cout << "Geçersiz oda numarası." << endl;
+            return false;
+        }
+
+        if (!odalar[odaNumarasi - 1]) {
+            cout << "Seçilen oda boş, düzenleme yapılamaz." << endl;
+            return false;
+        }
+
+        time_t yeniBaslangic = mktime(const_cast<tm*>(&yeniBaslangicTarih));
+        time_t yeniBitis = mktime(const_cast<tm*>(&yeniBitisTarih));
+
+        for (auto& rezervasyon : rezervasyonlar) {
+            if (rezervasyon.GetOdaNumarasi() == odaNumarasi) {
+                if (yeniBaslangic <= rezervasyon.GetBitisTarihi() && yeniBitis >= rezervasyon.GetBaslangicTarihi()) {
+                    cout << "Seçilen tarihlerde oda zaten rezerve edilmiş." << endl;
+                    return false;
+                }
+                rezervasyon = Rezervasyon(rezervasyon.GetMusteriAdi(), odaNumarasi, yeniBaslangic, yeniBitis);
+                break;
+            }
+        }
+
+        cout << "Rezervasyon düzenlendi: Oda " << odaNumarasi << endl;
+        return true;
+    }
+};
+
+int main() {
+    int odaSayisi;
+    cout << "Otelin toplam oda sayısını girin: ";
+    cin >> odaSayisi;
+
+    OtelYonetimSistemi oys(odaSayisi);
+
+    int secim;
+    do {
+        cout << endl;
+        cout << "1. Oda Durumunu Göster" << endl;
+        cout << "2. Rezervasyon Yap" << endl;
+        cout << "3. Rezervasyon İptal Et" << endl;
+        cout << "4. Rezervasyon Düzenle" << endl;
+        cout << "5. Çıkış" << endl;
+        cout << "Seçiminizi yapın: ";
+        cin >> secim;
+
+        switch (secim) {
+            case 1:
+                oys.OdalariGoster();
+                break;
+            case 2: {
+                string musteriAdi;
+                int odaNumarasi;
+                tm baslangicTarih, bitisTarih;
+                cout << "Müşteri adını girin: ";
+                cin.ignore();
+                getline(cin, musteriAdi);
+                cout << "Rezerve etmek istediğiniz oda numarasını girin: ";
+                cin >> odaNumarasi;
+                cout << "Rezervasyon başlangıç tarihini girin (gg/aa/yyyy): ";
+                cin >> get_time(&baslangicTarih, "%d/%m/%Y");
+                if (cin.fail()) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << "Geçersiz tarih formatı." << endl;
+                    break;
+                }
+                cout << "Rezervasyon bitiş tarihini girin (gg/aa/yyyy): ";
+                cin >> get_time(&bitisTarih, "%d/%m/%Y");
+                if (cin.fail()) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << "Geçersiz tarih formatı." << endl;
+                    break;
+                }
+                oys.RezervasyonYap(musteriAdi, odaNumarasi, baslangicTarih, bitisTarih);
+                break;
+            }
+            case 3: {
+                int odaNumarasi;
+                cout << "İptal etmek istediğiniz rezervasyonun oda numarasını girin: ";
+                cin >> odaNumarasi;
+                oys.RezervasyonIptal(odaNumarasi);
+                break;
+            }
+            case 4: {
+                int odaNumarasi;
+                tm yeniBaslangicTarih, yeniBitisTarih;
+                cout << "Düzenlemek istediğiniz rezervasyonun oda numarasını girin: ";
+                cin >> odaNumarasi;
+                cout << "Yeni rezervasyon başlangıç tarihini girin (gg/aa/yyyy): ";
+                cin >> get_time(&yeniBaslangicTarih, "%d/%m/%Y");
+                if (cin.fail()) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << "Geçersiz tarih formatı." << endl;
+                    break;
+                }
+                cout << "Yeni rezervasyon bitiş tarihini girin (gg/aa/yyyy): ";
+                cin >> get_time(&yeniBitisTarih, "%d/%m/%Y");
+                if (cin.fail()) {
+                    cin.clear();
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    cout << "Geçersiz tarih formatı." << endl;
+                    break;
+                }
+                oys.RezervasyonDuzenle(odaNumarasi, yeniBaslangicTarih, yeniBitisTarih);
+                break;
+            }
+            case 5:
+                cout << "Çıkış yapılıyor..." << endl;
+                break;
+            default:
+                cout << "Geçersiz seçim!" << endl;
+        }
+    } while (secim != 5);
+
+    return 0;
+}
